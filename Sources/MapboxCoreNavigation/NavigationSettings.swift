@@ -307,7 +307,7 @@ public class NavigationSettings {
      Specifies the preferred distance measurement unit.
      Meters and feet will be used when the presented distances are small enough. See `DistanceFormatter` for more information.
      */
-    public dynamic var distanceUnit : LengthFormatter.Unit = Locale.current.measuresDistancesInMetricUnits ? .kilometer : .mile {
+    public dynamic var distanceUnit : LengthFormatter.Unit = .kilometer  {
         didSet {
             notifyChanged(property: .distanceUnit, value: distanceUnit.rawValue)
         }
@@ -380,6 +380,6 @@ extension MeasurementSystem {
 extension LengthFormatter.Unit {
     /// :nodoc: Converts `MapboxDirections.MeasurementSystem` into `LengthFormatter.Unit`.
     public init(_ measurementSystem: MeasurementSystem) {
-        self = measurementSystem == .metric ? .kilometer : .mile
+        self = .kilometer 
     }
 }
