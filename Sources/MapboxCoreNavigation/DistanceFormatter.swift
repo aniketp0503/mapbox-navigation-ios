@@ -233,7 +233,21 @@ open class DistanceFormatter: Formatter, NSSecureCoding {
      - seealso: `MeasurementFormatter.string(from:)`
      */
     open func string(from distance: CLLocationDistance) -> String {
-        return string(from: Measurement(distance: distance))
+        measurementFormatter.numberFormatter.roundingIncrement = 0.25
+        
+        var measurement = Measurement(value: distance, unit: UnitLength.meters)
+        let shouldUseMetricSystem = locale.usesMetricSystem
+        
+        if shouldUseMetricSystem {
+            measurementFormatter.unitOptions = [.providedUnit, .naturalScale]
+        } else {
+            measurementFormatter.unitOptions = .providedUnit
+            measurement.convert(to: .kilometers)
+            if measurement.value <= 1 {
+                measurement.convert(to: .meters)
+            }
+        }
+        return measurementFormatter.string(from: measurement)
     }
     
     /**
@@ -246,7 +260,25 @@ open class DistanceFormatter: Formatter, NSSecureCoding {
      - returns: A localized, formatted representation of the distance.
      */
     open func attributedString(from distance: CLLocationDistance, defaultAttributes attributes: [NSAttributedString.Key: Any]? = nil) -> NSAttributedString {
-        return attributedString(from: Measurement(distance: distance), defaultAttributes: attributes)
+        let string = self.string(from: distance)
+        let attributedString = NSMutableAttributedString(string: string, attributes: attributes)
+        
+        var measurement = Measurement(value: distance, unit: UnitLength.meters)
+        let shouldUseMetricSystem = locale.usesMetricSystem
+        if !shouldUseMetricSystem {
+            measurement.convert(to: .kilometers)
+            if measurement.value <= 1 {
+                measurement.convert(to: .meters)
+            }
+        }
+        
+        if let quantityString = measurementFormatter.numberFormatter.string(from: measurement.value as NSNumber) {
+            let quantityRange = (string as NSString).range(of: quantityString)
+            if quantityRange.location != NSNotFound {
+                attributedString.addAttribute(.quantity, value: measurement.value as NSNumber, range: quantityRange)
+            }
+        }
+        return attributedString
     }
     
     /**
@@ -257,7 +289,21 @@ open class DistanceFormatter: Formatter, NSSecureCoding {
      - seealso: `MeasurementFormatter.string(from:)`
      */
     open func string(from measurement: Measurement<UnitLength>) -> String {
-        return measurementFormatter.string(from: measurement.localized(into: locale))
+        measurementFormatter.numberFormatter.roundingIncrement = 0.25
+        
+        var localizedMeasurement = measurement.converted(to: .meters)
+        let shouldUseMetricSystem = locale.usesMetricSystem
+        
+        if shouldUseMetricSystem {
+            measurementFormatter.unitOptions = [.providedUnit, .naturalScale]
+        } else {
+            measurementFormatter.unitOptions = .providedUnit
+            localizedMeasurement.convert(to: .kilometers)
+            if localizedMeasurement.value <= 1 {
+                localizedMeasurement.convert(to: .meters)
+            }
+        }
+        return measurementFormatter.string(from: localizedMeasurement)
     }
     
     /**
@@ -271,11 +317,18 @@ open class DistanceFormatter: Formatter, NSSecureCoding {
      */
     open func attributedString(from measurement: Measurement<UnitLength>, defaultAttributes attributes: [NSAttributedString.Key: Any]? = nil) -> NSAttributedString {
         let string = self.string(from: measurement)
-        let localizedMeasurement = measurement.localized(into: locale)
-        
         let attributedString = NSMutableAttributedString(string: string, attributes: attributes)
+        
+        var localizedMeasurement = measurement.converted(to: .meters)
+        let shouldUseMetricSystem = locale.usesMetricSystem
+        if !shouldUseMetricSystem {
+            localizedMeasurement.convert(to: .kilometers)
+            if localizedMeasurement.value <= 1 {
+                localizedMeasurement.convert(to: .meters)
+            }
+        }
+        
         if let quantityString = measurementFormatter.numberFormatter.string(from: localizedMeasurement.value as NSNumber) {
-            // NSMutableAttributedString methods accept NSRange, not Range.
             let quantityRange = (string as NSString).range(of: quantityString)
             if quantityRange.location != NSNotFound {
                 attributedString.addAttribute(.quantity, value: localizedMeasurement.value as NSNumber, range: quantityRange)
