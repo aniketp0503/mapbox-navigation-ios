@@ -443,11 +443,11 @@ extension TopBannerViewController: NavigationComponent {
 // MARK: InstructionsBannerViewDelegate Conformance
 extension TopBannerViewController: InstructionsBannerViewDelegate {
     public func didTapInstructionsBanner(_ sender: BaseInstructionsBannerView) {
-        if isDisplayingSteps {
-            dismissStepsTable()
-        } else {
-            displayStepsTable()
-        }
+//        if isDisplayingSteps {
+//            dismissStepsTable()
+//        } else {
+//            displayStepsTable()
+//        }
     }
     
     public func didSwipeInstructionsBanner(_ sender: BaseInstructionsBannerView, swipeDirection direction: UISwipeGestureRecognizer.Direction) {
