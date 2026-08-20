@@ -61,6 +61,8 @@ open class NavigationViewController: UIViewController, NavigationStatusPresenter
             navigationViewportDataSource?.options.followingCameraOptions.paddingUpdatesAllowed = true
             navigationViewportDataSource?.options.followingCameraOptions.zoomUpdatesAllowed = true
             navigationViewportDataSource?.options.followingCameraOptions.followsLocationCourse = false
+            navigationViewportDataSource?.followingCameraPadding = additionalViewportPadding
+            print("AIRRUN_NAV_DEBUG iOS SDK: NavigationViewController injected navigationMapView followBottom=\(additionalViewportPadding.bottom)")
             
             validNavigationMapView.navigationCamera.follow()
             
@@ -71,8 +73,11 @@ open class NavigationViewController: UIViewController, NavigationStatusPresenter
     func setupNavigationCamera() {
         // By default `NavigationCamera` in active guidance navigation should be set to `NavigationCameraState.following` state.
         if let navigationMapView = navigationMapView {
-            navigationMapView.navigationCamera.viewportDataSource = NavigationViewportDataSource(navigationMapView.mapView,
-                                                                                                 viewportDataSourceType: .active)
+            let navigationViewportDataSource = NavigationViewportDataSource(navigationMapView.mapView,
+                                                                            viewportDataSourceType: .active)
+            navigationViewportDataSource.followingCameraPadding = additionalViewportPadding
+            navigationMapView.navigationCamera.viewportDataSource = navigationViewportDataSource
+            print("AIRRUN_NAV_DEBUG iOS SDK: setupNavigationCamera followBottom=\(additionalViewportPadding.bottom)")
             navigationMapView.navigationCamera.follow()
         }
         
@@ -801,6 +806,22 @@ open class NavigationViewController: UIViewController, NavigationStatusPresenter
         set {
             loadViewIfNeeded()
             ornamentsController?.floatingButtons = newValue
+        }
+    }
+
+    /**
+     Additional viewport padding supplied by the embedding application.
+     
+     Use this to reserve visible map space for app-specific overlays such as custom bottom sheets.
+     The navigation camera adds this padding on top of the SDK's own banner/layout padding.
+     */
+    public var additionalViewportPadding: UIEdgeInsets = .zero {
+        didSet {
+            loadViewIfNeeded()
+            print("AIRRUN_NAV_DEBUG iOS SDK: additionalViewportPadding updated top=\(additionalViewportPadding.top) left=\(additionalViewportPadding.left) bottom=\(additionalViewportPadding.bottom) right=\(additionalViewportPadding.right)")
+            if let navigationViewportDataSource = navigationMapView?.navigationCamera.viewportDataSource as? NavigationViewportDataSource {
+                navigationViewportDataSource.followingCameraPadding = additionalViewportPadding
+            }
         }
     }
     

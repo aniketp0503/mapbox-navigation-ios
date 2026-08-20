@@ -7,6 +7,7 @@ import MapboxDirections
  Class, which conforms to `ViewportDataSource` protocol and provides default implementation of it.
  */
 public class NavigationViewportDataSource: ViewportDataSource {
+    private let airRunNavDebugPrefix = "AIRRUN_NAV_DEBUG iOS SDK:"
     
     /**
      Delegate, which is used to notify `NavigationCamera` regarding upcoming `CameraOptions`
@@ -54,6 +55,21 @@ public class NavigationViewportDataSource: ViewportDataSource {
     public var viewportPadding: UIEdgeInsets = .zero {
         didSet {
             guard oldValue != viewportPadding else { return }
+            print("\(airRunNavDebugPrefix) viewportPadding updated top=\(viewportPadding.top) left=\(viewportPadding.left) bottom=\(viewportPadding.bottom) right=\(viewportPadding.right)")
+            notifyViewportDidChange()
+        }
+    }
+
+    /**
+     Additional padding applied only to the following camera anchor/padding.
+
+     Unlike `viewportPadding`, this value does not participate in zoom/framing calculations,
+     so the application can lift the puck above a bottom sheet without forcing a route preview-like zoom out.
+     */
+    public var followingCameraPadding: UIEdgeInsets = .zero {
+        didSet {
+            guard oldValue != followingCameraPadding else { return }
+            print("\(airRunNavDebugPrefix) followingCameraPadding updated top=\(followingCameraPadding.top) left=\(followingCameraPadding.left) bottom=\(followingCameraPadding.bottom) right=\(followingCameraPadding.right)")
             notifyViewportDidChange()
         }
     }
@@ -137,6 +153,9 @@ public class NavigationViewportDataSource: ViewportDataSource {
         let cameraOptions = self.cameraOptions(passiveLocation: passiveLocation,
                                                activeLocation: activeLocation,
                                                routeProgress: routeProgress)
+        if passiveLocation != nil || activeLocation != nil {
+            print("\(airRunNavDebugPrefix) progressDidChange type=\(viewportDataSourceType) passive=\(passiveLocation != nil) active=\(activeLocation != nil) routeProgress=\(routeProgress != nil)")
+        }
         delegate?.viewportDataSource(self, didUpdate: cameraOptions)
         
         NotificationCenter.default.post(name: .navigationCameraViewportDidChange, object: self, userInfo: [
@@ -166,6 +185,10 @@ public class NavigationViewportDataSource: ViewportDataSource {
             CameraOptions.followingCarPlayCamera: followingCarPlayCamera,
             CameraOptions.overviewCarPlayCamera: overviewCarPlayCamera
         ]
+
+        if let followingCenter = followingMobileCamera.center {
+            print("\(airRunNavDebugPrefix) cameraOptions following center=\(followingCenter.latitude),\(followingCenter.longitude) zoom=\(String(describing: followingMobileCamera.zoom)) pitch=\(String(describing: followingMobileCamera.pitch)) anchor=\(String(describing: followingMobileCamera.anchor)) padding=\(String(describing: followingMobileCamera.padding)) viewportBottom=\(viewportPadding.bottom) followBottom=\(followingCameraPadding.bottom)")
+        }
         
         return cameraOptions
     }
@@ -226,7 +249,9 @@ public class NavigationViewportDataSource: ViewportDataSource {
             let geometryFramingAfterManeuver = followingCameraOptions.geometryFramingAfterManeuver
             let pitchСoefficient = self.pitchСoefficient(routeProgress, currentCoordinate: location.coordinate)
             let pitch = followingCameraOptions.defaultPitch * pitchСoefficient
+            let followingAnchorPadding = viewportPadding + followingCameraPadding
             var carPlayCameraPadding = mapView.safeArea + UIEdgeInsets.centerEdgeInsets
+            print("\(airRunNavDebugPrefix) active-follow start viewportBottom=\(viewportPadding.bottom) followBottom=\(followingCameraPadding.bottom) anchorBottom=\(followingAnchorPadding.bottom) mapHeight=\(mapView.bounds.height)")
             
             // Bottom of the viewport on CarPlay should be placed at the same level with
             // trip estimate view.
@@ -304,6 +329,7 @@ public class NavigationViewportDataSource: ViewportDataSource {
                                                      minZoomLevel: followingCameraOptions.zoomRange.lowerBound)
                 
                 followingMobileCamera.zoom = followingMobileCameraZoom
+                print("\(airRunNavDebugPrefix) active-follow zoom=\(followingMobileCameraZoom) usingViewportBottom=\(viewportPadding.bottom)")
                 
                 let followingCarPlayCameraZoom = zoom(coordinatesForIntersections,
                                                       pitch: pitch,
@@ -344,9 +370,10 @@ public class NavigationViewportDataSource: ViewportDataSource {
             
             let followingMobileCameraAnchor = anchor(pitchСoefficient,
                                                      bounds: mapView.bounds,
-                                                     edgeInsets: viewportPadding)
+                                                     edgeInsets: followingAnchorPadding)
             
             followingMobileCamera.anchor = followingMobileCameraAnchor
+            print("\(airRunNavDebugPrefix) active-follow anchor=\(followingMobileCameraAnchor) paddingBottom=\(followingAnchorPadding.bottom)")
             
             let followingCarPlayCameraAnchor = anchor(pitchСoefficient,
                                                       bounds: mapView.bounds,
@@ -361,9 +388,10 @@ public class NavigationViewportDataSource: ViewportDataSource {
             
             if options.followingCameraOptions.paddingUpdatesAllowed || followingMobileCamera.padding == nil {
                 followingMobileCamera.padding = UIEdgeInsets(top: followingMobileCameraAnchor.y,
-                                                             left: viewportPadding.left,
+                                                             left: followingAnchorPadding.left,
                                                              bottom: mapView.bounds.height - followingMobileCameraAnchor.y + 1.0,
-                                                             right: viewportPadding.right)
+                                                             right: followingAnchorPadding.right)
+                print("\(airRunNavDebugPrefix) active-follow finalPadding=\(String(describing: followingMobileCamera.padding))")
                 
                 if mapView.window?.screen.traitCollection.userInterfaceIdiom == .carPlay {
                     followingCarPlayCamera.padding = UIEdgeInsets(top: followingCarPlayCameraAnchor.y,
@@ -621,6 +649,7 @@ private extension NavigationViewportDataSource {
                                                passiveLocation: latestPassiveLocation,
                                                activeLocation: latestActiveLocation,
                                                routeProgress: latestRouteProgress)
+        print("\(airRunNavDebugPrefix) notifyViewportDidChange raw=\(latestRawLocation != nil) passive=\(latestPassiveLocation != nil) active=\(latestActiveLocation != nil) routeProgress=\(latestRouteProgress != nil)")
         delegate?.viewportDataSource(self, didUpdate: cameraOptions)
         
         NotificationCenter.default.post(name: .navigationCameraViewportDidChange, object: self, userInfo: [

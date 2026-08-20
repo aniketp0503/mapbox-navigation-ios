@@ -128,15 +128,18 @@ class CameraController: NavigationComponent, NavigationComponentDelegate {
         }
     }
     
-    private func updateNavigationCameraViewport() {
+    func updateNavigationCameraViewport() {
         if let navigationViewportDataSource = navigationMapView.navigationCamera.viewportDataSource as? NavigationViewportDataSource {
             let newViewport = viewportPadding
             let visibleRect = navigationMapView.mapView.bounds.inset(by: newViewport)
+            let followBottomPadding = navigationViewportDataSource.followingCameraPadding.bottom
+            print("AIRRUN_NAV_DEBUG iOS SDK: CameraController.updateNavigationCameraViewport viewport top=\(newViewport.top) left=\(newViewport.left) bottom=\(newViewport.bottom) right=\(newViewport.right) followBottom=\(followBottomPadding) visibleWidth=\(visibleRect.size.width) visibleHeight=\(visibleRect.size.height)")
 
             guard visibleRect.size.width > 0, visibleRect.size.height > 0 else {
                 // The viewport padding is bigger than the map itself,
                 // this usually means that it is being fully overlapped by one of the banners
                 // In this case, we ignore new viewport to avoid unexpected camera jumps
+                print("AIRRUN_NAV_DEBUG iOS SDK: CameraController ignored viewport because visible rect is invalid")
                 return
             }
 
@@ -165,7 +168,7 @@ class CameraController: NavigationComponent, NavigationComponentDelegate {
         @unknown default:
             break
         }
-    
+
         return insets
     }
     
