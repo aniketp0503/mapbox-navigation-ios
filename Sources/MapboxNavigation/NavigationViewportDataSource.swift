@@ -45,15 +45,29 @@ public class NavigationViewportDataSource: ViewportDataSource {
     public var options: NavigationViewportDataSourceOptions = NavigationViewportDataSourceOptions()
     
     /**
-     Value of default viewport padding.
+     Value of viewport padding which affects the following and overview camera framing.
+     
+     Update this value when the visible map area changes, for example when an overlay or
+     bottom sheet covers part of the map. The data source re-evaluates immediately using the
+     most recent navigation state so the puck can stay in the visible driving area.
      */
-    var viewportPadding: UIEdgeInsets = .zero
+    public var viewportPadding: UIEdgeInsets = .zero {
+        didSet {
+            guard oldValue != viewportPadding else { return }
+            notifyViewportDidChange()
+        }
+    }
     
     weak var mapView: MapView?
     
     var viewportDataSourceType: ViewportDataSourceType = .passive
     
     var heading: CLHeading?
+    
+    private var latestRawLocation: CLLocation?
+    private var latestPassiveLocation: CLLocation?
+    private var latestActiveLocation: CLLocation?
+    private var latestRouteProgress: RouteProgress?
     
     // MARK: Initializer Methods
     
@@ -116,6 +130,9 @@ public class NavigationViewportDataSource: ViewportDataSource {
         let activeLocation = notification.userInfo?[RouteController.NotificationUserInfoKey.locationKey] as? CLLocation
         let routeProgress = notification.userInfo?[RouteController.NotificationUserInfoKey.routeProgressKey] as? RouteProgress
         heading = notification.userInfo?[RouteController.NotificationUserInfoKey.headingKey] as? CLHeading
+        latestPassiveLocation = passiveLocation
+        latestActiveLocation = activeLocation
+        latestRouteProgress = routeProgress
         
         let cameraOptions = self.cameraOptions(passiveLocation: passiveLocation,
                                                activeLocation: activeLocation,
@@ -592,7 +609,22 @@ extension NavigationViewportDataSource: LocationConsumer {
     public func locationUpdate(newLocation: Location) {
         let location = CLLocation(latitude: newLocation.coordinate.latitude,
                                   longitude: newLocation.coordinate.longitude)
+        latestRawLocation = location
         let cameraOptions = self.cameraOptions(location)
         delegate?.viewportDataSource(self, didUpdate: cameraOptions)
+    }
+}
+
+private extension NavigationViewportDataSource {
+    func notifyViewportDidChange() {
+        let cameraOptions = self.cameraOptions(latestRawLocation,
+                                               passiveLocation: latestPassiveLocation,
+                                               activeLocation: latestActiveLocation,
+                                               routeProgress: latestRouteProgress)
+        delegate?.viewportDataSource(self, didUpdate: cameraOptions)
+        
+        NotificationCenter.default.post(name: .navigationCameraViewportDidChange, object: self, userInfo: [
+            NavigationCamera.NotificationUserInfoKey.cameraOptions: cameraOptions
+        ])
     }
 }
